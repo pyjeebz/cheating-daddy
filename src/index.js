@@ -57,6 +57,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
     stopMacOSAudioCapture();
+    const localai = require('./utils/localai');
+    localai.closeLocalSession();
+    localai.stopFallbackWhisper();
 });
 
 app.on('activate', () => {
@@ -150,25 +153,6 @@ function setupStorageIpcHandlers() {
             return { success: true };
         } catch (error) {
             console.error('Error setting Groq API key:', error);
-            return { success: false, error: error.message };
-        }
-    });
-
-    ipcMain.handle('storage:get-ollama-api-key', async () => {
-        try {
-            return { success: true, data: storage.getOllamaApiKey() };
-        } catch (error) {
-            console.error('Error getting Ollama API key:', error);
-            return { success: false, error: error.message };
-        }
-    });
-
-    ipcMain.handle('storage:set-ollama-api-key', async (event, ollamaApiKey) => {
-        try {
-            storage.setOllamaApiKey(ollamaApiKey);
-            return { success: true };
-        } catch (error) {
-            console.error('Error setting Ollama API key:', error);
             return { success: false, error: error.message };
         }
     });

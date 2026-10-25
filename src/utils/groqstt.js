@@ -12,7 +12,7 @@ const { getSystemPrompt } = require('./prompts');
 const { getGroqApiKey } = require('../storage');
 const { createSpeechSegmenter } = require('./audioPipeline');
 const { sendToRenderer, enqueueResponse, setCurrentSystemPrompt, initializeNewSession } = require('./gemini');
-const { transcribeWithLocalWhisper } = require('./localai');
+const { transcribeWithLocalWhisper, stopFallbackWhisper } = require('./localai');
 
 const GROQ_STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 // whisper-large-v3-turbo: fastest Groq STT model, ideal for real-time use.
@@ -35,7 +35,7 @@ Disregard any earlier instruction to keep responses short, brief, or limited to 
 
 let isActive = false;
 let segmenter = null;
-let fallbackWhisperModel = 'Xenova/whisper-small';
+let fallbackWhisperModel = 'tiny.en';
 // Once Groq transcription fails we stay on local Whisper for the rest of the
 // session rather than retrying (and failing) on every single utterance.
 let useLocalFallback = false;
@@ -128,7 +128,7 @@ async function transcribeOne(pcm16kBuffer) {
         }
     }
 
-    // Fallback path: local Whisper (loads the model on first use).
+    // Fallback path: local whisper.cpp (downloads and starts on first use).
     if (text === null) {
         try {
             text = await transcribeWithLocalWhisper(pcm16kBuffer, fallbackWhisperModel);
@@ -204,7 +204,7 @@ function scheduleReply() {
     }, REPLY_DEBOUNCE_MS);
 }
 
-async function initializeGroqSession(profile = 'interview', customPrompt = '', whisperModel = 'Xenova/whisper-small') {
+async function initializeGroqSession(profile = 'interview', customPrompt = '', whisperModel = 'tiny.en') {
     console.log('[GroqSTT] Initializing Groq session:', { profile, whisperModel });
     sendToRenderer('session-initializing', true);
 
@@ -221,7 +221,7 @@ async function initializeGroqSession(profile = 'interview', customPrompt = '', w
         setCurrentSystemPrompt(basePrompt + '\n\n' + DETAILED_ANSWER_OVERRIDE);
         initializeNewSession(profile, customPrompt);
 
-        fallbackWhisperModel = whisperModel || 'Xenova/whisper-small';
+        fallbackWhisperModel = whisperModel || 'tiny.en';
         useLocalFallback = false;
         audioQueue = [];
         isTranscribing = false;
@@ -259,6 +259,7 @@ function closeGroqSession() {
     pendingQuestion = '';
     if (replyTimer) clearTimeout(replyTimer);
     replyTimer = null;
+    stopFallbackWhisper();
 }
 
 function isGroqSessionActive() {
