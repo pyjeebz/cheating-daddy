@@ -13,7 +13,8 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_CREDENTIALS = {
     apiKey: '',
-    groqApiKey: ''
+    groqApiKey: '',
+    ollamaApiKey: ''
 };
 
 const DEFAULT_PREFERENCES = {
@@ -29,14 +30,14 @@ const DEFAULT_PREFERENCES = {
     backgroundTransparency: 0.8,
     googleSearchEnabled: false,
     ollamaHost: 'http://127.0.0.1:11434',
-    ollamaModel: 'llama3.1',
+    ollamaModel: 'qwen3-vl:8b',
     whisperModel: 'Xenova/whisper-small',
 };
 
 const DEFAULT_KEYBINDS = null; // null means use system defaults
 
 const DEFAULT_LIMITS = {
-    data: [] // Array of { date: 'YYYY-MM-DD', flash: { count }, flashLite: { count }, groq: { 'qwen3-32b': { chars, limit }, 'gpt-oss-120b': { chars, limit }, 'gpt-oss-20b': { chars, limit } }, gemini: { 'gemma-3-27b-it': { chars } } }
+    data: [] // Array of { date: 'YYYY-MM-DD', flash: { count }, flashLite: { count }, groq: { 'qwen3-32b': { chars, limit }, 'gpt-oss-120b': { chars, limit }, 'gpt-oss-20b': { chars, limit } }, gemini: { 'gemma-4-26b-a4b-it': { chars } } }
 };
 
 // Get the config directory path based on OS
@@ -205,6 +206,16 @@ function setGroqApiKey(groqApiKey) {
     return setCredentials({ groqApiKey });
 }
 
+function getOllamaApiKey() {
+    // getCredentials() returns saved JSON as-is (no defaults merge), so the
+    // field is undefined on existing installs — the || '' is mandatory.
+    return getCredentials().ollamaApiKey || '';
+}
+
+function setOllamaApiKey(ollamaApiKey) {
+    return setCredentials({ ollamaApiKey });
+}
+
 // ============ PREFERENCES ============
 
 function getPreferences() {
@@ -263,12 +274,13 @@ function getTodayLimits() {
                 'qwen3-32b': { chars: 0, limit: 1500000 },
                 'gpt-oss-120b': { chars: 0, limit: 600000 },
                 'gpt-oss-20b': { chars: 0, limit: 600000 },
-                'kimi-k2-instruct': { chars: 0, limit: 600000 }
+                'kimi-k2-instruct': { chars: 0, limit: 600000 },
+                'llama-4-scout': { chars: 0, limit: 600000 }
             };
         }
         if(!todayEntry.gemini) {
             todayEntry.gemini = {
-                'gemma-3-27b-it': { chars: 0 }
+                'gemma-4-26b-a4b-it': { chars: 0 }
             };
         }
         setLimits(limits);
@@ -285,10 +297,11 @@ function getTodayLimits() {
             'qwen3-32b': { chars: 0, limit: 1500000 },
             'gpt-oss-120b': { chars: 0, limit: 600000 },
             'gpt-oss-20b': { chars: 0, limit: 600000 },
-            'kimi-k2-instruct': { chars: 0, limit: 600000 }
+            'kimi-k2-instruct': { chars: 0, limit: 600000 },
+            'llama-4-scout': { chars: 0, limit: 600000 }
         },
         gemini: {
-            'gemma-3-27b-it': { chars: 0 }
+            'gemma-4-26b-a4b-it': { chars: 0 }
         }
     };
     limits.data.push(newEntry);
@@ -318,10 +331,10 @@ function incrementLimitCount(model) {
         limits.data = limits.data.filter(entry => entry.date === today);
     }
 
-    // Increment the appropriate model count
-    if (model === 'gemini-2.5-flash') {
+    // Current-gen models (gemini-2.5-* are retired and 404 for new API keys)
+    if (model === 'gemini-3.6-flash') {
         todayEntry.flash.count++;
-    } else if (model === 'gemini-2.5-flash-lite') {
+    } else if (model === 'gemini-flash-lite-latest') {
         todayEntry.flashLite.count++;
     }
 
@@ -347,15 +360,16 @@ function incrementCharUsage(provider, model, charCount) {
 function getAvailableModel() {
     const todayLimits = getTodayLimits();
 
-    // RPD limits: flash = 20, flash-lite = 20
-    // After both exhausted, fall back to flash (for paid API users)
-    if (todayLimits.flash.count < 20) {
-        return 'gemini-2.5-flash';
-    } else if (todayLimits.flashLite.count < 20) {
-        return 'gemini-2.5-flash-lite';
+    // Request-count fallback thresholds (kept conservative for the free tier):
+    // flash = 250 req, flash-lite = 1000 req. After both exhausted, fall back
+    // to flash (for paid API users).
+    if (todayLimits.flash.count < 250) {
+        return 'gemini-3.6-flash';
+    } else if (todayLimits.flashLite.count < 1000) {
+        return 'gemini-flash-lite-latest';
     }
 
-    return 'gemini-2.5-flash'; // Default to flash for paid API users
+    return 'gemini-3.6-flash'; // Default to flash for paid API users
 }
 
 function getModelForToday() {
@@ -501,6 +515,8 @@ module.exports = {
     setApiKey,
     getGroqApiKey,
     setGroqApiKey,
+    getOllamaApiKey,
+    setOllamaApiKey,
 
     // Preferences
     getPreferences,

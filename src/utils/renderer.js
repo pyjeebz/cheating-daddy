@@ -56,6 +56,13 @@ const storage = {
     async setGroqApiKey(groqApiKey) {
         return ipcRenderer.invoke('storage:set-groq-api-key', groqApiKey);
     },
+    async getOllamaApiKey() {
+        const result = await ipcRenderer.invoke('storage:get-ollama-api-key');
+        return result.success ? result.data : '';
+    },
+    async setOllamaApiKey(ollamaApiKey) {
+        return ipcRenderer.invoke('storage:set-ollama-api-key', ollamaApiKey);
+    },
 
     // Preferences
     async getPreferences() {
@@ -156,7 +163,7 @@ async function initializeGemini(profile = 'interview', language = 'en-US') {
 async function initializeLocal(profile = 'interview') {
     const prefs = await storage.getPreferences();
     const ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
-    const ollamaModel = prefs.ollamaModel || 'llama3.1';
+    const ollamaModel = prefs.ollamaModel || 'qwen3-vl:8b';
     const whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
     const customPrompt = prefs.customPrompt || '';
 

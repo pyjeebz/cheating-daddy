@@ -154,6 +154,25 @@ function setupStorageIpcHandlers() {
         }
     });
 
+    ipcMain.handle('storage:get-ollama-api-key', async () => {
+        try {
+            return { success: true, data: storage.getOllamaApiKey() };
+        } catch (error) {
+            console.error('Error getting Ollama API key:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('storage:set-ollama-api-key', async (event, ollamaApiKey) => {
+        try {
+            storage.setOllamaApiKey(ollamaApiKey);
+            return { success: true };
+        } catch (error) {
+            console.error('Error setting Ollama API key:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     // ============ PREFERENCES ============
     ipcMain.handle('storage:get-preferences', async () => {
         try {

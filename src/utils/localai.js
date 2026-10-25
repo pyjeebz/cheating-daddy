@@ -1,6 +1,7 @@
 const { Ollama } = require('ollama');
 const { getSystemPrompt } = require('./prompts');
 const { sendToRenderer, initializeNewSession, saveConversationTurn } = require('./gemini');
+const { getOllamaApiKey } = require('../storage');
 
 // ── State ──
 
@@ -283,8 +284,13 @@ async function initializeLocalSession(ollamaHost, model, whisperModel, profile, 
         // Setup system prompt
         currentSystemPrompt = getSystemPrompt(profile, customPrompt, false);
 
-        // Initialize Ollama client
-        ollamaClient = new Ollama({ host: ollamaHost });
+        // Initialize Ollama client. API key is optional — used for authenticated
+        // endpoints (e.g. Ollama Cloud or a reverse proxy); plain local Ollama ignores it.
+        const ollamaApiKey = (getOllamaApiKey() || '').trim();
+        ollamaClient = new Ollama({
+            host: ollamaHost,
+            headers: ollamaApiKey ? { Authorization: `Bearer ${ollamaApiKey}` } : undefined,
+        });
         ollamaModel = model;
 
         // Test Ollama connection

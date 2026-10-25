@@ -497,6 +497,7 @@ export class MainView extends LitElement {
         // Local AI state
         _ollamaHost: { state: true },
         _ollamaModel: { state: true },
+        _ollamaKey: { state: true },
         _whisperModel: { state: true },
         _showLocalHelp: { state: true },
     };
@@ -519,7 +520,8 @@ export class MainView extends LitElement {
         this._keyError = false;
         this._showLocalHelp = false;
         this._ollamaHost = 'http://127.0.0.1:11434';
-        this._ollamaModel = 'llama3.1';
+        this._ollamaModel = 'qwen3-vl:8b';
+        this._ollamaKey = '';
         this._whisperModel = 'Xenova/whisper-small';
 
         this._animId = null;
@@ -553,7 +555,8 @@ export class MainView extends LitElement {
 
             // Load local AI settings
             this._ollamaHost = prefs.ollamaHost || 'http://127.0.0.1:11434';
-            this._ollamaModel = prefs.ollamaModel || 'llama3.1';
+            this._ollamaModel = prefs.ollamaModel || 'qwen3-vl:8b';
+            this._ollamaKey = await cheatingDaddy.storage.getOllamaApiKey().catch(() => '') || '';
             this._whisperModel = prefs.whisperModel || 'Xenova/whisper-small';
 
             this.requestUpdate();
@@ -731,6 +734,12 @@ export class MainView extends LitElement {
         this.requestUpdate();
     }
 
+    async _saveOllamaKey(val) {
+        this._ollamaKey = val;
+        await cheatingDaddy.storage.setOllamaApiKey(val);
+        this.requestUpdate();
+    }
+
     async _saveOllamaModel(val) {
         this._ollamaModel = val;
         await cheatingDaddy.storage.updatePreference('ollamaModel', val);
@@ -881,10 +890,21 @@ export class MainView extends LitElement {
             </div>
 
             <div class="form-group">
+                <label class="form-label">Ollama API Key</label>
+                <input
+                    type="password"
+                    placeholder="Optional"
+                    .value=${this._ollamaKey}
+                    @input=${e => this._saveOllamaKey(e.target.value)}
+                />
+                <div class="form-hint">Only needed for authenticated endpoints (e.g. Ollama Cloud or a proxy)</div>
+            </div>
+
+            <div class="form-group">
                 <label class="form-label">Ollama Model</label>
                 <input
                     type="text"
-                    placeholder="llama3.1"
+                    placeholder="qwen3-vl:8b"
                     .value=${this._ollamaModel}
                     @input=${e => this._saveOllamaModel(e.target.value)}
                 />
